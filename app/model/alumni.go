@@ -2,7 +2,6 @@ package model
 
 import "time"
 
-// Alumni merepresentasikan tabel alumni di database
 type Alumni struct {
 	ID         int       `json:"id"`
 	NIM        string    `json:"nim"`

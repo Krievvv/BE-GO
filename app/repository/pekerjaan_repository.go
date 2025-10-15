@@ -36,9 +36,43 @@ func (r *PekerjaanRepository) GetAllPekerjaan(search, sortBy, order string, limi
 	return pekerjaanList, nil
 }
 
+func (r *PekerjaanRepository) GetAllPekerjaanForUser(userID int, search, sortBy, order string, limit, offset int) ([]model.PekerjaanAlumni, error) {
+	query := fmt.Sprintf(`
+		SELECT id, alumni_id, nama_perusahaan, posisi_jabatan, bidang_industri, lokasi_kerja, gaji_range, tanggal_mulai_kerja, tanggal_selesai_kerja, status_pekerjaan, deskripsi_pekerjaan, created_at, updated_at, deleted_at 
+		FROM pekerjaan_alumni 
+		WHERE alumni_id = $1 AND (nama_perusahaan ILIKE $2 OR posisi_jabatan ILIKE $2 OR bidang_industri ILIKE $2) AND deleted_at IS NULL
+		ORDER BY %s %s 
+		LIMIT $3 OFFSET $4`, sortBy, order)
+
+	rows, err := r.DB.Query(query, userID, "%"+search+"%", limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var pekerjaanList []model.PekerjaanAlumni
+	for rows.Next() {
+		var p model.PekerjaanAlumni
+		if err := rows.Scan(&p.ID, &p.AlumniID, &p.NamaPerusahaan, &p.PosisiJabatan, &p.BidangIndustri, &p.LokasiKerja, &p.GajiRange, &p.TanggalMulaiKerja, &p.TanggalSelesaiKerja, &p.StatusPekerjaan, &p.DeskripsiPekerjaan, &p.CreatedAt, &p.UpdatedAt, &p.DeletedAt); err != nil {
+			return nil, err
+		}
+		pekerjaanList = append(pekerjaanList, p)
+	}
+	return pekerjaanList, nil
+}
+
+func (r *PekerjaanRepository) CountPekerjaanForUser(userID int, search string) (int, error) {
+	var total int
+	query := "SELECT COUNT(*) FROM pekerjaan_alumni WHERE alumni_id = $1 AND (nama_perusahaan ILIKE $2 OR posisi_jabatan ILIKE $2 OR bidang_industri ILIKE $2) AND deleted_at IS NULL"
+	err := r.DB.QueryRow(query, userID, "%"+search+"%").Scan(&total)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
 func (r *PekerjaanRepository) GetPekerjaanByID(id int) (*model.PekerjaanAlumni, error) {
 	var p model.PekerjaanAlumni
-	// Tambahkan "AND deleted_at IS NULL"
 	query := "SELECT id, alumni_id, nama_perusahaan, posisi_jabatan, bidang_industri, lokasi_kerja, gaji_range, tanggal_mulai_kerja, tanggal_selesai_kerja, status_pekerjaan, deskripsi_pekerjaan, created_at, updated_at, deleted_at FROM pekerjaan_alumni WHERE id = $1 AND deleted_at IS NULL"
 	
 	err := r.DB.QueryRow(query, id).Scan(&p.ID, &p.AlumniID, &p.NamaPerusahaan, &p.PosisiJabatan, &p.BidangIndustri, &p.LokasiKerja, &p.GajiRange, &p.TanggalMulaiKerja, &p.TanggalSelesaiKerja, &p.StatusPekerjaan, &p.DeskripsiPekerjaan, &p.CreatedAt, &p.UpdatedAt, &p.DeletedAt)
@@ -136,31 +170,28 @@ func (r *PekerjaanRepository) CountPekerjaan(search string) (int, error) {
 
 
 //INI UTS
-func (r *PekerjaanRepository) GetTrashedPekerjaan() ([]model.PekerjaanAlumni, error) {
-	query := "SELECT id, alumni_id, nama_perusahaan, posisi_jabatan, bidang_industri, lokasi_kerja, gaji_range, tanggal_mulai_kerja, tanggal_selesai_kerja, status_pekerjaan, deskripsi_pekerjaan, created_at, updated_at, deleted_at FROM pekerjaan_alumni WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC"
+func (r *PekerjaanRepository) GetTrashedPekerjaan() ([]model.PekerjaanTrash, error) {
+	query := "SELECT id, nama_perusahaan, deleted_at FROM pekerjaan_alumni WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC"
 	rows, err := r.DB.Query(query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var pekerjaanList []model.PekerjaanAlumni
+	var trashList []model.PekerjaanTrash 
 	for rows.Next() {
-		var p model.PekerjaanAlumni
-		if err := rows.Scan(&p.ID, &p.AlumniID, &p.NamaPerusahaan, &p.PosisiJabatan, &p.BidangIndustri, &p.LokasiKerja, &p.GajiRange, &p.TanggalMulaiKerja, &p.TanggalSelesaiKerja, &p.StatusPekerjaan, &p.DeskripsiPekerjaan, &p.CreatedAt, &p.UpdatedAt, &p.DeletedAt); err != nil {
+		var p model.PekerjaanTrash 
+		if err := rows.Scan(&p.ID, &p.NamaPerusahaan, &p.DeletedAt); err != nil {
 			return nil, err
 		}
-		pekerjaanList = append(pekerjaanList, p)
+		trashList = append(trashList, p)
 	}
-	return pekerjaanList, nil
+	return trashList, nil
 }
 
-func (r *PekerjaanRepository) GetTrashedPekerjaanForUser(userID int) ([]model.PekerjaanAlumni, error) {
+func (r *PekerjaanRepository) GetTrashedPekerjaanForUser(userID int) ([]model.PekerjaanTrash, error) {
 	query := `
-		SELECT 
-			id, alumni_id, nama_perusahaan, posisi_jabatan, bidang_industri, 
-			lokasi_kerja, gaji_range, tanggal_mulai_kerja, tanggal_selesai_kerja, 
-			status_pekerjaan, deskripsi_pekerjaan, created_at, updated_at, deleted_at 
+		SELECT id, nama_perusahaan, deleted_at 
 		FROM pekerjaan_alumni 
 		WHERE deleted_at IS NOT NULL AND alumni_id = $1 
 		ORDER BY deleted_at DESC`
@@ -171,19 +202,15 @@ func (r *PekerjaanRepository) GetTrashedPekerjaanForUser(userID int) ([]model.Pe
 	}
 	defer rows.Close()
 
-	var pekerjaanList []model.PekerjaanAlumni
+	var trashList []model.PekerjaanTrash 
 	for rows.Next() {
-		var p model.PekerjaanAlumni
-		if err := rows.Scan(
-			&p.ID, &p.AlumniID, &p.NamaPerusahaan, &p.PosisiJabatan, &p.BidangIndustri,
-			&p.LokasiKerja, &p.GajiRange, &p.TanggalMulaiKerja, &p.TanggalSelesaiKerja,
-			&p.StatusPekerjaan, &p.DeskripsiPekerjaan, &p.CreatedAt, &p.UpdatedAt, &p.DeletedAt,
-		); err != nil {
+		var p model.PekerjaanTrash 
+		if err := rows.Scan(&p.ID, &p.NamaPerusahaan, &p.DeletedAt); err != nil {
 			return nil, err
 		}
-		pekerjaanList = append(pekerjaanList, p)
+		trashList = append(trashList, p)
 	}
-	return pekerjaanList, nil
+	return trashList, nil
 }
 
 func (r *PekerjaanRepository) RestorePekerjaanByID(id int) (int64, error) {

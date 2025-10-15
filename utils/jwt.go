@@ -6,7 +6,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Ganti secret key ini dengan string acak yang lebih aman dan panjang
 var jwtSecret = []byte("kunci-rahasia-anda-yang-sangat-panjang-dan-aman")
 
 func GenerateToken(user model.User) (string, error) {

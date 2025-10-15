@@ -1,6 +1,5 @@
 package model
 
-// MetaInfo berisi informasi pagination, sorting, dan search
 type MetaInfo struct {
 	Page   int    `json:"page"`
 	Limit  int    `json:"limit"`

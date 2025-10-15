@@ -10,21 +10,20 @@ import (
 )
 
 func SetupRoutes(app *fiber.App, db *sql.DB) {
-	// Initialize repositories
+
 	alumniRepo := &repository.AlumniRepository{DB: db}
 	pekerjaanRepo := &repository.PekerjaanRepository{DB: db}
 	userRepo := &repository.UserRepository{DB: db} 
 
-	// Initialize services
+
 	alumniService := &service.AlumniService{Repo: alumniRepo}
 	pekerjaanService := &service.PekerjaanService{Repo: pekerjaanRepo}
 	authService := &service.AuthService{UserRepo: userRepo}
 
-	// Grouping routes
+
 	api := app.Group("/prak4")
 	api.Post("/login", authService.Login)
 
-	//rute yang dilindungi (membutuhkan login)
 	protected := api.Group("", middleware.AuthRequired())
 	
 	// Alumni Routes [cite: 588]

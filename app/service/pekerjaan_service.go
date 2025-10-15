@@ -6,7 +6,7 @@ import (
 	"prak4/app/repository"
 	"prak4/helper"
 	"strconv"
-	"strings"
+	// "strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -23,30 +23,34 @@ func (s *PekerjaanService) GetAllPekerjaan(c *fiber.Ctx) error {
 	order := c.Query("order", "asc")
 	search := c.Query("search", "")
 
-	// Validasi parameter
-	sortByWhitelist := map[string]bool{"id": true, "nama_perusahaan": true, "posisi_jabatan": true, "lokasi_kerja": true}
-	if !sortByWhitelist[sortBy] {
-		sortBy = "id"
-	}
-	if strings.ToLower(order) != "desc" {
-		order = "asc"
+	// Ambil role dan ID user yang login
+	role := c.Locals("role").(string)
+	userID := c.Locals("user_id").(int)
+
+	var pekerjaan []model.PekerjaanAlumni
+	var total int
+	var err error
+	
+	// Terapkan logika berdasarkan role
+	if role == "admin" {
+		// Admin melihat semua data
+		pekerjaan, err = s.Repo.GetAllPekerjaan(search, sortBy, order, limit, (page-1)*limit)
+		if err == nil {
+			total, err = s.Repo.CountPekerjaan(search)
+		}
+	} else {
+		// User biasa hanya melihat datanya sendiri
+		pekerjaan, err = s.Repo.GetAllPekerjaanForUser(userID, search, sortBy, order, limit, (page-1)*limit)
+		if err == nil {
+			total, err = s.Repo.CountPekerjaanForUser(userID, search)
+		}
 	}
 
-	// Hitung offset
-	offset := (page - 1) * limit
-
-	// Panggil repository
-	pekerjaan, err := s.Repo.GetAllPekerjaan(search, sortBy, order, limit, offset)
 	if err != nil {
 		return helper.ErrorResponse(c, fiber.StatusInternalServerError, "Gagal mengambil data pekerjaan")
 	}
 
-	total, err := s.Repo.CountPekerjaan(search)
-	if err != nil {
-		return helper.ErrorResponse(c, fiber.StatusInternalServerError, "Gagal menghitung total data pekerjaan")
-	}
-
-	// Buat respons
+	// Buat respons 
 	response := model.PekerjaanResponse{
 		Data: pekerjaan,
 		Meta: model.MetaInfo{
@@ -64,18 +68,23 @@ func (s *PekerjaanService) GetAllPekerjaan(c *fiber.Ctx) error {
 }
 
 func (s *PekerjaanService) GetPekerjaanByID(c *fiber.Ctx) error {
-	id, err := strconv.Atoi(c.Params("id"))
-	if err != nil {
-		return helper.ErrorResponse(c, fiber.StatusBadRequest, "ID pekerjaan tidak valid")
-	}
-
-	pekerjaan, err := s.Repo.GetPekerjaanByID(id)
+	pekerjaanID, _ := strconv.Atoi(c.Params("id"))
+	role := c.Locals("role").(string)
+	userID := c.Locals("user_id").(int)
+	
+	pekerjaan, err := s.Repo.GetPekerjaanByID(pekerjaanID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return helper.ErrorResponse(c, fiber.StatusNotFound, "Pekerjaan tidak ditemukan")
 		}
-		return helper.ErrorResponse(c, fiber.StatusInternalServerError, "Gagal mengambil data pekerjaan: "+err.Error())
+		return helper.ErrorResponse(c, fiber.StatusInternalServerError, "Gagal mengambil data pekerjaan")
 	}
+	
+	// LOGIKA OTORISASI
+	if role != "admin" && pekerjaan.AlumniID != userID {
+		return helper.ErrorResponse(c, fiber.StatusForbidden, "Akses ditolak. Anda tidak memiliki izin untuk melihat data ini.")
+	}
+
 	return helper.SuccessResponse(c, pekerjaan, "Data pekerjaan berhasil diambil")
 }
 
@@ -166,7 +175,6 @@ func (s *PekerjaanService) DeletePekerjaan(c *fiber.Ctx) error {
 	}
 
 	if rowsAffected == 0 {
-		// Pesan ini bisa berarti "tidak ditemukan" atau "bukan milik Anda"
 		return helper.ErrorResponse(c, fiber.StatusNotFound, "Pekerjaan tidak ditemukan atau Anda tidak memiliki hak akses.")
 	}
 
@@ -198,8 +206,6 @@ func (s *PekerjaanService) RestorePekerjaan(c *fiber.Ctx) error {
 	pekerjaanID, _ := strconv.Atoi(c.Params("id"))
 	role := c.Locals("role").(string)
 	userID := c.Locals("user_id").(int)
-
-	// Gunakan fungsi baru untuk mencari data di sampah
 	pekerjaan, err := s.Repo.GetPekerjaanByIDIncludeTrashed(pekerjaanID)
 	if err != nil {
 		return helper.ErrorResponse(c, fiber.StatusNotFound, "Pekerjaan tidak ditemukan")
@@ -210,7 +216,7 @@ func (s *PekerjaanService) RestorePekerjaan(c *fiber.Ctx) error {
 		return helper.ErrorResponse(c, fiber.StatusBadRequest, "Data pekerjaan ini aktif dan tidak perlu di-restore.")
 	}
 	
-	// Otorisasi: Boleh jika admin ATAU pemilik data
+	// Otorisasi
 	if role != "admin" && pekerjaan.AlumniID != userID {
 		return helper.ErrorResponse(c, fiber.StatusForbidden, "Akses ditolak.")
 	}

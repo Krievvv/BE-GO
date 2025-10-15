@@ -5,12 +5,12 @@ import (
 	"log"
 	"os"
 
-	_ "github.com/lib/pq" // PostgreSQL driver
+	_ "github.com/lib/pq" 
 )
 
 var DB *sql.DB
 
-// ConnectDB menginisialisasi koneksi ke database
+
 func ConnectDB() {
 	dsn := os.Getenv("DB_DSN")
 	if dsn == "" {

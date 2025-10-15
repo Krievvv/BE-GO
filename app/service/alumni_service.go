@@ -19,14 +19,14 @@ func (s *AlumniService) GetAllAlumni(c *fiber.Ctx) error {
 	// Ambil query parameter
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
-	sortBy := c.Query("sortBy", "id") // Default sort by id
-	order := c.Query("order", "asc")   // Default order ascending
+	sortBy := c.Query("sortBy", "id") 
+	order := c.Query("order", "asc")   
 	search := c.Query("search", "")
 
 	// Validasi parameter
 	sortByWhitelist := map[string]bool{"id": true, "nama": true, "nim": true, "angkatan": true, "jurusan": true}
 	if !sortByWhitelist[sortBy] {
-		sortBy = "id" // Fallback ke default jika sortBy tidak valid
+		sortBy = "id" 
 	}
 	if strings.ToLower(order) != "desc" {
 		order = "asc"
@@ -52,14 +52,14 @@ func (s *AlumniService) GetAllAlumni(c *fiber.Ctx) error {
 			Page:   page,
 			Limit:  limit,
 			Total:  total,
-			Pages:  (total + limit - 1) / limit, // Kalkulasi total halaman
+			Pages:  (total + limit - 1) / limit, 
 			SortBy: sortBy,
 			Order:  order,
 			Search: search,
 		},
 	}
 
-	return c.JSON(response) // Kirim respons dalam format baru
+	return c.JSON(response) 
 }
 
 func (s *AlumniService) GetAlumniByID(c *fiber.Ctx) error {

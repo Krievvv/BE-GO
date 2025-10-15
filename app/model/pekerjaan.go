@@ -2,7 +2,7 @@ package model
 
 import "time"
 
-// PekerjaanAlumni merepresentasikan tabel pekerjaan_alumni
+
 type PekerjaanAlumni struct {
 	ID                  int        `json:"id"`
 	AlumniID            int        `json:"alumni_id"`
@@ -19,7 +19,9 @@ type PekerjaanAlumni struct {
 	UpdatedAt           time.Time  `json:"updated_at"`
 	DeletedAt           *time.Time `json:"deleted_at,omitempty"`
 }
-type PekerjaanSummary struct {
-    BidangIndustri string `json:"bidang_industri"`
-    Jumlah         int    `json:"jumlah"`
+
+type PekerjaanTrash struct {
+	ID             int        `json:"id"`
+	NamaPerusahaan string     `json:"nama_perusahaan"`
+	DeletedAt      *time.Time `json:"deleted_at"`
 }
