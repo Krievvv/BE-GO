@@ -11,6 +11,11 @@ type PekerjaanRepository struct {
 	DB *sql.DB
 }
 
+// NewPekerjaanRepository creates a new instance of PekerjaanRepository
+func NewPekerjaanRepository(db *sql.DB) *PekerjaanRepository {
+	return &PekerjaanRepository{DB: db}
+}
+
 func (r *PekerjaanRepository) GetAllPekerjaan(search, sortBy, order string, limit, offset int) ([]model.PekerjaanAlumni, error) {
 	query := fmt.Sprintf(`
 		SELECT id, alumni_id, nama_perusahaan, posisi_jabatan, bidang_industri, lokasi_kerja, gaji_range, tanggal_mulai_kerja, tanggal_selesai_kerja, status_pekerjaan, deskripsi_pekerjaan, created_at, updated_at, deleted_at 

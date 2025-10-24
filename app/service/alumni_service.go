@@ -15,6 +15,11 @@ type AlumniService struct {
 	Repo *repository.AlumniRepository
 }
 
+// NewAlumniService creates a new instance of AlumniService
+func NewAlumniService(repo *repository.AlumniRepository) *AlumniService {
+	return &AlumniService{Repo: repo}
+}
+
 func (s *AlumniService) GetAllAlumni(c *fiber.Ctx) error {
 	// Ambil query parameter
 	page, _ := strconv.Atoi(c.Query("page", "1"))

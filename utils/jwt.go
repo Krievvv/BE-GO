@@ -8,14 +8,15 @@ import (
 
 var jwtSecret = []byte("kunci-rahasia-anda-yang-sangat-panjang-dan-aman")
 
-func GenerateToken(user model.User) (string, error) {
+func GenerateToken(user model.User, issuer string) (string, error) {
 	claims := model.JWTClaims{
 		UserID:   user.ID,
 		Username: user.Username,
 		Role:     user.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)), // Token berlaku 24 jam [cite: 77]
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    issuer, 
 		},
 	}
 

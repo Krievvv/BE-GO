@@ -11,6 +11,11 @@ type AlumniRepository struct {
 	DB *sql.DB
 }
 
+// NewAlumniRepository creates a new instance of AlumniRepository
+func NewAlumniRepository(db *sql.DB) *AlumniRepository {
+	return &AlumniRepository{DB: db}
+}
+
 func (r *AlumniRepository) GetAllAlumni(search, sortBy, order string, limit, offset int) ([]model.Alumni, error) {
 	query := fmt.Sprintf(`
 		SELECT id, nim, nama, jurusan, angkatan, tahun_lulus, email, no_telepon, alamat, created_at, updated_at 

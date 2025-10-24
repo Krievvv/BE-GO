@@ -10,14 +10,17 @@ type MetaInfo struct {
 	Search string `json:"search"`
 }
 
-// AlumniResponse adalah format respons akhir untuk endpoint /alumni
 type AlumniResponse struct {
 	Data []Alumni `json:"data"`
 	Meta MetaInfo `json:"meta"`
 }
 
-// PekerjaanResponse adalah format respons akhir untuk endpoint /pekerjaan
 type PekerjaanResponse struct {
 	Data []PekerjaanAlumni `json:"data"`
 	Meta MetaInfo          `json:"meta"`
+}
+
+type PekerjaanMongoResponse struct {
+	Data []PekerjaanAlumniMongo `json:"data"` 
+	Meta MetaInfo               `json:"meta"`
 }

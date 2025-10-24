@@ -4,57 +4,67 @@ import (
 	"database/sql"
 	"prak4/app/repository"
 	"prak4/app/service"
+	"prak4/database"
 	"prak4/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func SetupRoutes(app *fiber.App, db *sql.DB) {
+	alumniRepo := repository.NewAlumniRepository(db)
+	pgPekerjaanRepo := repository.NewPekerjaanRepository(db)
+	pgUserRepo := repository.NewUserRepository(db)
 
-	alumniRepo := &repository.AlumniRepository{DB: db}
-	pekerjaanRepo := &repository.PekerjaanRepository{DB: db}
-	userRepo := &repository.UserRepository{DB: db} 
+	alumniService := service.NewAlumniService(alumniRepo)
+	pgPekerjaanService := service.NewPekerjaanService(pgPekerjaanRepo)
 
+	mongoPekerjaanRepo := repository.NewPekerjaanRepositoryMongo(database.Mongo)
+	mongoUserRepo := repository.NewUserRepositoryMongo(database.Mongo)
+	logRepo := repository.NewLogRepository(database.Mongo)
 
-	alumniService := &service.AlumniService{Repo: alumniRepo}
-	pekerjaanService := &service.PekerjaanService{Repo: pekerjaanRepo}
-	authService := &service.AuthService{UserRepo: userRepo}
+	mongoPekerjaanService := service.NewPekerjaanMongoService(mongoPekerjaanRepo)
+	logService := service.NewLogService(logRepo)
 
+	pgAuthService := service.NewAuthService(pgUserRepo, logRepo)
+	mongoAuthService := service.NewAuthMongoService(mongoUserRepo, logRepo)
 
 	api := app.Group("/prak4")
-	api.Post("/login", authService.Login)
+	api.Post("/login", pgAuthService.Login)
+	api.Post("/login-mongo", mongoAuthService.LoginMongo)
 
 	protected := api.Group("", middleware.AuthRequired())
-	
-	// Alumni Routes [cite: 588]
-	alumni := protected.Group("/alumni")
-	alumni.Get("/", alumniService.GetAllAlumni)                                   
-	alumni.Get("/:id", alumniService.GetAlumniByID)                               
-	alumni.Post("/", middleware.AdminOnly(), alumniService.CreateAlumni)         
-	alumni.Put("/:id", middleware.AdminOnly(), alumniService.UpdateAlumni)       
-	alumni.Delete("/:id", middleware.AdminOnly(), alumniService.DeleteAlumni)    
-	alumni.Get("/angkatan/:angkatan", alumniService.GetAlumniByAngkatan) 
 
-	// Pekerjaan Alumni Routes [cite: 594]
-	// pekerjaan := protected.Group("/pekerjaan")
-	// pekerjaan.Get("/", pekerjaanService.GetAllPekerjaan)                                           
-	// pekerjaan.Get("/:id", pekerjaanService.GetPekerjaanByID)                                       
-	// pekerjaan.Get("/alumni/:alumni_id", middleware.AdminOnly(), pekerjaanService.GetPekerjaanByAlumniID) 
-	// pekerjaan.Post("/", middleware.AdminOnly(), pekerjaanService.CreatePekerjaan)                  
-	// pekerjaan.Put("/:id", middleware.AdminOnly(), pekerjaanService.UpdatePekerjaan)                
-	// pekerjaan.Delete("/:id", pekerjaanService.DeletePekerjaan) 
+	protected.Get("/logs", middleware.AdminOnly(), logService.GetAllLogs)
 
+	protected.Post("/users", middleware.AdminOnly(), middleware.RequireIssuer("postgres"), pgAuthService.RegisterUser)
 
-	//INI UTS
-	pekerjaan := protected.Group("/pekerjaan")
-	pekerjaan.Get("/", pekerjaanService.GetAllPekerjaan)                                           
-	pekerjaan.Get("/trash", middleware.AdminOnly(), pekerjaanService.GetTrashedPekerjaan)
-	pekerjaan.Get("/trash/me", pekerjaanService.GetMyTrashedPekerjaan)
-	pekerjaan.Get("/:id", pekerjaanService.GetPekerjaanByID)                                       
-	pekerjaan.Get("/alumni/:alumni_id", middleware.AdminOnly(), pekerjaanService.GetPekerjaanByAlumniID) 
-	pekerjaan.Post("/", middleware.AdminOnly(), pekerjaanService.CreatePekerjaan)                  
-	pekerjaan.Put("/:id", middleware.AdminOnly(), pekerjaanService.UpdatePekerjaan)                
-	pekerjaan.Patch("/restore/:id", pekerjaanService.RestorePekerjaan)            
-	pekerjaan.Delete("/:id", pekerjaanService.DeletePekerjaan)         
-	pekerjaan.Delete("/force/:id", pekerjaanService.HardDeletePekerjaan)
-}
+	alumni := protected.Group("/alumni", middleware.RequireIssuer("postgres")) 
+	alumni.Get("/", alumniService.GetAllAlumni)
+	alumni.Get("/angkatan/:angkatan", alumniService.GetAlumniByAngkatan)
+	alumni.Get("/:id", alumniService.GetAlumniByID)
+	alumni.Post("/", middleware.AdminOnly(), alumniService.CreateAlumni) 
+	alumni.Put("/:id", alumniService.UpdateAlumni)
+	alumni.Delete("/:id", alumniService.DeleteAlumni)
+
+	pekerjaan := protected.Group("/pekerjaan", middleware.RequireIssuer("postgres")) 
+	pekerjaan.Get("/", pgPekerjaanService.GetAllPekerjaan)
+	pekerjaan.Get("/trash", middleware.AdminOnly(), pgPekerjaanService.GetTrashedPekerjaan)
+	pekerjaan.Get("/trash/me", pgPekerjaanService.GetMyTrashedPekerjaan)
+	pekerjaan.Get("/:id", pgPekerjaanService.GetPekerjaanByID)
+	pekerjaan.Post("/", middleware.AdminOnly(), pgPekerjaanService.CreatePekerjaan)
+	pekerjaan.Put("/:id", middleware.AdminOnly(), pgPekerjaanService.UpdatePekerjaan)
+	pekerjaan.Patch("/restore/:id", pgPekerjaanService.RestorePekerjaan)
+	pekerjaan.Delete("/:id", pgPekerjaanService.DeletePekerjaan)
+	pekerjaan.Delete("/force/:id", pgPekerjaanService.HardDeletePekerjaan)
+
+	pMongo := protected.Group("/mongo/pekerjaan", middleware.RequireIssuer("mongo"))
+	pMongo.Post("/", middleware.AdminOnly(), mongoPekerjaanService.CreatePekerjaan)
+	pMongo.Get("/", mongoPekerjaanService.GetAllPekerjaan)
+	pMongo.Get("/trash", mongoPekerjaanService.GetTrashed)
+	pMongo.Get("/alumni/:alumni_id", middleware.AdminOnly(), mongoPekerjaanService.GetAllPekerjaanByAlumniID)
+	pMongo.Get("/:id", mongoPekerjaanService.GetPekerjaanByID)
+	pMongo.Put("/:id", middleware.AdminOnly(), mongoPekerjaanService.UpdatePekerjaan)
+	pMongo.Patch("/restore/:id", mongoPekerjaanService.RestorePekerjaan)
+	pMongo.Delete("/:id", mongoPekerjaanService.DeletePekerjaan)
+	pMongo.Delete("/force/:id", mongoPekerjaanService.HardDeletePekerjaan)
+} 

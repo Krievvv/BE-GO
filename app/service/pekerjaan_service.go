@@ -6,7 +6,6 @@ import (
 	"prak4/app/repository"
 	"prak4/helper"
 	"strconv"
-	// "strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -15,15 +14,17 @@ type PekerjaanService struct {
 	Repo *repository.PekerjaanRepository
 }
 
+func NewPekerjaanService(repo *repository.PekerjaanRepository) *PekerjaanService {
+	return &PekerjaanService{Repo: repo}
+}
+
 func (s *PekerjaanService) GetAllPekerjaan(c *fiber.Ctx) error {
-	// Ambil query parameter
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	sortBy := c.Query("sortBy", "id")
 	order := c.Query("order", "asc")
 	search := c.Query("search", "")
 
-	// Ambil role dan ID user yang login
 	role := c.Locals("role").(string)
 	userID := c.Locals("user_id").(int)
 
@@ -31,7 +32,6 @@ func (s *PekerjaanService) GetAllPekerjaan(c *fiber.Ctx) error {
 	var total int
 	var err error
 	
-	// Terapkan logika berdasarkan role
 	if role == "admin" {
 		// Admin melihat semua data
 		pekerjaan, err = s.Repo.GetAllPekerjaan(search, sortBy, order, limit, (page-1)*limit)
@@ -50,7 +50,6 @@ func (s *PekerjaanService) GetAllPekerjaan(c *fiber.Ctx) error {
 		return helper.ErrorResponse(c, fiber.StatusInternalServerError, "Gagal mengambil data pekerjaan")
 	}
 
-	// Buat respons 
 	response := model.PekerjaanResponse{
 		Data: pekerjaan,
 		Meta: model.MetaInfo{
@@ -148,19 +147,17 @@ func (s *PekerjaanService) UpdatePekerjaan(c *fiber.Ctx) error {
 }
 
 func (s *PekerjaanService) DeletePekerjaan(c *fiber.Ctx) error {
-	// Ambil ID pekerjaan dari parameter URL
 	pekerjaanID, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return helper.ErrorResponse(c, fiber.StatusBadRequest, "ID pekerjaan tidak valid")
 	}
 
-	// Ambil informasi user yang sedang login dari token JWT
 	role := c.Locals("role").(string)
 	userID := c.Locals("user_id").(int)
 
 	var rowsAffected int64
 
-	// Terapkan logika hak akses
+	// logika hak akses
 	if role == "admin" {
 		// Admin menggunakan fungsi hapus umum
 		rowsAffected, err = s.Repo.SoftDeletePekerjaanByID(pekerjaanID)
@@ -169,7 +166,6 @@ func (s *PekerjaanService) DeletePekerjaan(c *fiber.Ctx) error {
 		rowsAffected, err = s.Repo.SoftDeletePekerjaanForUser(pekerjaanID, userID)
 	}
 
-	// Penanganan error dan respons
 	if err != nil {
 		return helper.ErrorResponse(c, fiber.StatusInternalServerError, "Gagal menghapus pekerjaan: "+err.Error())
 	}
@@ -211,7 +207,6 @@ func (s *PekerjaanService) RestorePekerjaan(c *fiber.Ctx) error {
 		return helper.ErrorResponse(c, fiber.StatusNotFound, "Pekerjaan tidak ditemukan")
 	}
 
-	// Pastikan data yang akan di-restore memang ada di sampah
 	if pekerjaan.DeletedAt == nil {
 		return helper.ErrorResponse(c, fiber.StatusBadRequest, "Data pekerjaan ini aktif dan tidak perlu di-restore.")
 	}
