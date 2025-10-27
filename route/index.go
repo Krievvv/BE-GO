@@ -28,25 +28,30 @@ func SetupRoutes(app *fiber.App, db *sql.DB) {
 	pgAuthService := service.NewAuthService(pgUserRepo, logRepo)
 	mongoAuthService := service.NewAuthMongoService(mongoUserRepo, logRepo)
 
+	// File Upload (Mongo)
+	fileMongoRepo := repository.NewFileRepositoryMongo(database.Mongo)
+	fileMongoService := service.NewFileMongoService(fileMongoRepo)
+
 	api := app.Group("/prak4")
+
 	api.Post("/login", pgAuthService.Login)
 	api.Post("/login-mongo", mongoAuthService.LoginMongo)
 
 	protected := api.Group("", middleware.AuthRequired())
-
 	protected.Get("/logs", middleware.AdminOnly(), logService.GetAllLogs)
-
 	protected.Post("/users", middleware.AdminOnly(), middleware.RequireIssuer("postgres"), pgAuthService.RegisterUser)
 
-	alumni := protected.Group("/alumni", middleware.RequireIssuer("postgres")) 
+	// ALUMNI (Postgres)
+	alumni := protected.Group("/alumni", middleware.RequireIssuer("postgres"))
 	alumni.Get("/", alumniService.GetAllAlumni)
 	alumni.Get("/angkatan/:angkatan", alumniService.GetAlumniByAngkatan)
 	alumni.Get("/:id", alumniService.GetAlumniByID)
-	alumni.Post("/", middleware.AdminOnly(), alumniService.CreateAlumni) 
+	alumni.Post("/", middleware.AdminOnly(), alumniService.CreateAlumni)
 	alumni.Put("/:id", alumniService.UpdateAlumni)
 	alumni.Delete("/:id", alumniService.DeleteAlumni)
 
-	pekerjaan := protected.Group("/pekerjaan", middleware.RequireIssuer("postgres")) 
+	// PEKERJAAN (Postgres)
+	pekerjaan := protected.Group("/pekerjaan", middleware.RequireIssuer("postgres"))
 	pekerjaan.Get("/", pgPekerjaanService.GetAllPekerjaan)
 	pekerjaan.Get("/trash", middleware.AdminOnly(), pgPekerjaanService.GetTrashedPekerjaan)
 	pekerjaan.Get("/trash/me", pgPekerjaanService.GetMyTrashedPekerjaan)
@@ -57,6 +62,7 @@ func SetupRoutes(app *fiber.App, db *sql.DB) {
 	pekerjaan.Delete("/:id", pgPekerjaanService.DeletePekerjaan)
 	pekerjaan.Delete("/force/:id", pgPekerjaanService.HardDeletePekerjaan)
 
+	// PEKERJAAN (MongoDB)
 	pMongo := protected.Group("/mongo/pekerjaan", middleware.RequireIssuer("mongo"))
 	pMongo.Post("/", middleware.AdminOnly(), mongoPekerjaanService.CreatePekerjaan)
 	pMongo.Get("/", mongoPekerjaanService.GetAllPekerjaan)
@@ -67,4 +73,16 @@ func SetupRoutes(app *fiber.App, db *sql.DB) {
 	pMongo.Patch("/restore/:id", mongoPekerjaanService.RestorePekerjaan)
 	pMongo.Delete("/:id", mongoPekerjaanService.DeletePekerjaan)
 	pMongo.Delete("/force/:id", mongoPekerjaanService.HardDeletePekerjaan)
-} 
+
+	// FILE UPLOAD (Mongo) 
+	filesGroup := protected.Group("/files", middleware.RequireIssuer("mongo"))
+
+	// Upload menggunakan form-data
+	filesGroup.Post("/upload/foto", fileMongoService.UploadFoto)
+	filesGroup.Post("/upload/sertifikat", fileMongoService.UploadSertifikat)
+
+	// Get & Delete file metadata
+	filesGroup.Get("/", fileMongoService.GetAllFiles)
+	filesGroup.Get("/:id", fileMongoService.GetFileByID)
+	filesGroup.Delete("/:id", fileMongoService.DeleteFile)
+}

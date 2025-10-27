@@ -11,7 +11,6 @@ type AlumniRepository struct {
 	DB *sql.DB
 }
 
-// NewAlumniRepository creates a new instance of AlumniRepository
 func NewAlumniRepository(db *sql.DB) *AlumniRepository {
 	return &AlumniRepository{DB: db}
 }

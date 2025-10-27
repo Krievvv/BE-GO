@@ -16,18 +16,23 @@ func main() {
 	database.ConnectDB()
 	database.ConnectMongo()
 
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		BodyLimit: 2 * 1024 * 1024, 
+	})
+
 	app.Use(logger.New())
+	app.Static("/uploads", "./uploads") // 
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("Welcome to Alumni API")
 	})
 
-	route.SetupRoutes(app, database.DB)
+	route.SetupRoutes(app, database.DB) 
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {
-		port = "8080"
+		port = "8080" 
 	}
+	log.Printf("Server starting on port %s", port) 
 	log.Fatal(app.Listen(":" + port))
 }
